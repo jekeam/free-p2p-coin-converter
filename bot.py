@@ -8,15 +8,32 @@ from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageH
 from telegram.error import BadRequest
 from telegram.ext.callbackcontext import CallbackContext
 
+# from emoji import emojize
+
 import conf
 import dict_word
 import bot_util
 
 CURR_LANG = 'RU'
 
+
+def bild_inline_btn(update, btn:dict, text:str):
+    kb = []
+    for key, val in btn.items():
+        kb.append([InlineKeyboardButton(text=val, callback_data=key)])
+    reply_markup = InlineKeyboardMarkup(kb)
+    update.message.reply_text(text=text, reply_markup=reply_markup)
+
 def start(update, context):
     reset_user_data(context)
-    update.message.reply_text(text=dict_word.start.get(CURR_LANG))
+    coins = {}
+    for pair_coins in conf.accsess_coins:
+        coins[pair_coins] = pair_coins.replace(':', ' <-> ')
+    bild_inline_btn(update, coins, 'Пожалуйста выбере монетную пару, для обемена:')
+    
+def inline_manager(update, context):
+    pass
+    
     
 def set_choice(choice, val):
     pass
@@ -28,6 +45,8 @@ def reset_user_data(context):
     for key , val in context.user_data.items():
         print(key + '(' + str(val) + ')->' + str(None))
         key = None
+    else:
+        print('context.user_data is empty')
 
 
 def error_callback(bot, update, error):
@@ -59,9 +78,9 @@ if __name__ == '__main__':
 
     updater.dispatcher.add_handler(CommandHandler('start', start))
     updater.dispatcher.add_handler(CommandHandler('restart', start))
-    updater.dispatcher.add_handler(CommandHandler('help', help))
+    # updater.dispatcher.add_handler(CommandHandler('help', help))
     updater.dispatcher.add_error_handler(error_callback)
-    # updater.dispatcher.add_handler(CallbackQueryHandler(button))
+    updater.dispatcher.add_handler(CallbackQueryHandler(inline_manager))
     # updater.dispatcher.add_handler(MessageHandler(Filters.text, add_address))
 
     # Start the Bot
