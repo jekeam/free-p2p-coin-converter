@@ -16,22 +16,21 @@ import bot_util
 
 CURR_LANG = 'RU'
 
-ROAD_MAP = {
-    'choice_coin_sell': 'choice_addr_sell',
-    'choice_addr_sell': 'choice_sum',
-    'choice_sum': 'choice_coin_buy',
-    'choice_coin_buy': 'choice_addr_buy',
-    'choice_addr_buy': 'request_list'
-}
+def send_msg(context, text:str, reply_markup=None):
+    user_id = get_(context, 'user_id')
+    if user_id:
+        if reply_markup:
+            context.bot.send_message(user_id, text=text, reply_markup=reply_markup)
+        else:
+            context.bot.send_message(user_id, text=text)
 
-
-def bild_inline_btn(message, btn:dict, text:str):
+def choice_coin_sell(context, btn:dict, text:str):
     kb = []
     for key, val in btn.items():
         kb.append([InlineKeyboardButton(text=val, callback_data=key)])
     reply_markup = InlineKeyboardMarkup(kb)
-    message.reply_text(text=text, reply_markup=reply_markup)
-
+    send_msg(context, text, reply_markup)
+    
 
 def get_coins_dict(exclude=None):
     coins = {}
@@ -41,76 +40,74 @@ def get_coins_dict(exclude=None):
         coins.pop(exclude)
     return coins
 
-def start(update, context):
-    reset_user_data(context)
-    coins = get_coins_dict()
-    bild_inline_btn(update.message, coins, 'Пожалуйста выбере монету, которую вы хотите продать:')
-    set_(context, 'step', 'choice_coin_sell')
+
+def get_data(update):
+    data = None
+    try:
+        data = update.message.text
+    except AttributeError:
+        data = update.callback_query.data
+    return data
     
+def main(update, context):
+    data = get_data(update)
+    print('main, step: ' + str(get_(context, 'step')))
+    
+    if 'start' in data:
+        reset_user_data(context)
+        set_(context, 'step', 'choice_coin_sell')
+        set_(context, 'user_id', update.message.chat.id)
+        
+    if get_(context, 'step') == 'choice_coin_sell':
+        choice_coin_sell(context, get_coins_dict(), 'Пожалуйста выбере монету, которую вы хотите продать:')
+        set_(context, 'step', 'set_coin_sell')
+    elif get_(context, 'step') == 'set_coin_sell':
+        set_(context, 'coin_sell', data)
+        set_(context, 'step', 'choice_addr_sell')
+        
+    if get_(context, 'step') == 'choice_addr_sell':
+        send_msg(context, 'Пожалуйста, введите адрес для продажи ' + get_(context, 'coin_sell'))
+        set_(context, 'step', 'set_addr_sell')
+    elif get_(context, 'step') == 'set_addr_sell':
+        set_(context, 'addr_sell', data)
+        set_(context, 'step', 'choice_sum')
+        
+    if get_(context, 'step') == 'choice_sum':
+        send_msg(context, 'Пожалуйста, введите сумму продажи {}, например: 0.01'.format(get_(context, 'coin_sell')))
+        set_(context, 'step', 'set_sum')
+    elif get_(context, 'step') == 'set_sum':
+        set_(context, 'sum', data)
+        set_(context, 'step', 'choice_coin_buy')
+        
+    if get_(context, 'step') == 'choice_coin_buy':
+        choice_coin_sell(context, get_coins_dict(get_(context, 'coin_sell')), 'Пожалуйста выбере монету, которую вы хотите продать:')
+        set_(context, 'step', 'set_coin_buy')
+    elif get_(context, 'step') == 'set_coin_buy':
+        set_(context, 'coin_buy', data)
+        set_(context, 'step', 'show_request')
+        
+    if get_(context, 'step') == 'show_request':
+        send_msg(context, 'Ваша заявка принята, пожалуйста, проверьте данные: ' + str(context.user_data))
+        
     
 def set_(context, param:str, val:str):
+    param = str(param)
+    val = str(val)
+    print('set_: ' + param + ' = ' + val)
     context.user_data[param] = val
+    
     
 def get_(context, param:str):
     return context.user_data.get(param)
-    
-def get_next_step(context):
-    global ROAD_MAP
-    return ROAD_MAP.get(get_(context, 'step'))    
-    
-def set_next_step(context):
-    global ROAD_MAP
-    next_step = get_next_step(context)
-    print('old step: {}, current: {}'.format(get_(context, 'step'), next_step))
-    set_(context, 'step', next_step)
-    
-    
-def inline_manager(update, context):
-    step = get_(context, 'step')
-    
-    # data = None
-    # try:
-    data = update.callback_query.data
-    # except AttributeError:
-    #     pass
-    
-    print('inline_manager, data: {}'.format(data))
-    
-    if step == 'choice_coin_sell':
-        set_(context, 'coin_sell', data)
-        update.callback_query.message.reply_text('Пожалуйста, введите адрес для продажи ' + data)
-        # TODO: print balance and success mag
-    elif step == 'choice_coin_buy':
-        set_(context, 'coin_buy', data)
-        update.message.reply_text('Пожалуйста, выберете валюту для покупки: ')
-        coins = get_coins_dict(get_(context, 'coin_sell'))
-        bild_inline_btn(update.callback_query.message, coins, 'Пожалуйста выбере монету, которую вы хотите продать:')
-        # TODO: success mag
-    
-    set_next_step(context)
-    
-def text_manager(update, context):
-    data = update.message.text
-    
-    print('text_manager, data: {}'.format(data))
-    
-    if get_(context, 'step') == 'choice_addr_sell':
-        set_(context, 'address_sell', data)
-        set_next_step(context)
-        
-    if get_(context, 'step') == 'choice_sum':
-        update.message.reply_text('Пожалуйста, введите сумму продажи {}, например: 0.01'.format(get_(context, 'coin_sell')))
-        # TODO: success mag
-        set_next_step(context)
 
 
 def reset_user_data(context):
-    user_data = context.user_data
+    user_data = context.user_data.copy()
     print('user_data: ' + str(user_data))
     if user_data:
         for key , val in user_data.items():
             print(key + ' = ' + str(val) + ' -> clean')
-            key = None
+            context.user_data.pop(key)
     else:
         print('context.user_data is empty')
 
@@ -142,12 +139,12 @@ if __name__ == '__main__':
     dispatcher = updater.dispatcher
     context = CallbackContext(dispatcher)
 
-    updater.dispatcher.add_handler(CommandHandler('start', start))
-    updater.dispatcher.add_handler(CommandHandler('restart', start))
+    updater.dispatcher.add_handler(CommandHandler('start', main))
+    updater.dispatcher.add_handler(CommandHandler('restart', main))
     # updater.dispatcher.add_handler(CommandHandler('help', help))
     updater.dispatcher.add_error_handler(error_callback)
-    updater.dispatcher.add_handler(CallbackQueryHandler(inline_manager))
-    updater.dispatcher.add_handler(MessageHandler(Filters.text, text_manager))
+    updater.dispatcher.add_handler(CallbackQueryHandler(main))
+    updater.dispatcher.add_handler(MessageHandler(Filters.text, main))
 
     # Start the Bot
     updater.start_polling()
