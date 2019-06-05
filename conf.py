@@ -6,3 +6,5 @@ REQUEST_KWARGS = {
     'read_timeout': 60,
     'connect_timeout': 30
 }
+
+accsess_coins = ['BTC', 'ETH']
