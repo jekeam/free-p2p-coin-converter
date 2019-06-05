@@ -1,9 +1,0 @@
-2019-06-05 15:11:08,461 - telegram.ext.dispatcher - ERROR - An uncaught error was raised while processing the update
-Traceback (most recent call last):
-  File "/usr/local/lib/python3.4/dist-packages/telegram/ext/dispatcher.py", line 333, in process_update
-    handler.handle_update(update, self, check, context)
-  File "/usr/local/lib/python3.4/dist-packages/telegram/ext/handler.py", line 117, in handle_update
-    return self.callback(update, context)
-  File "/home/ubuntu/workspace/bot.py", line 54, in main
-    print('main, step: ' + get_(context, 'step'))
-TypeError: Can't convert 'NoneType' object to str implicitly
