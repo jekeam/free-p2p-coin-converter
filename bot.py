@@ -31,6 +31,23 @@ def choice_coin_sell(context, btn:dict, text:str):
         kb.append([InlineKeyboardButton(text=val, callback_data=key)])
     reply_markup = InlineKeyboardMarkup(kb)
     send_msg(context, text, reply_markup)
+
+
+def show_requests(context):
+    kb = []
+    reuests = get_requests(get_(context, 'user_id'))
+    if reuests:
+        for reuest in reuests:
+            kb.append([
+                InlineKeyboardButton(
+                    text='#{}    {} {} => {}'.format(reuest.id, reuest.summ, reuest.coin_sell, reuest.coin_buy), 
+                    callback_data='rq:' + str(reuest.id)
+                )
+            ])
+        reply_markup = InlineKeyboardMarkup(kb)
+        send_msg(context, 'Список ваших заявок', reply_markup)
+    else:
+        send_msg(context, 'Заявок не найдено')
     
 
 def get_coins_dict(exclude=None):
@@ -125,7 +142,7 @@ def main(update, context):
         create_request(
             get_(context, 'user_id'), 
             get_(context, 'sum'),
-            get_(context, 'addr_sell'), 
+            get_(context, 'coin_sell'), 
             get_(context, 'addr_sell'), 
             get_(context, 'coin_buy'), 
             get_(context, 'addr_buy')
@@ -135,12 +152,7 @@ def main(update, context):
     
     if  get_(context, 'step') == 'show_requests' or '/request' == data:
         set_(context, 'step', 'show_requests')
-        reuests = get_requests(get_(context, 'user_id'))
-        if reuests:
-            for reuest in reuests:
-                send_msg(context, '*#{}*: {} {} -> {}'.format(reuest.id, reuest.summ, reuest.coin_sell, reuest.coin_buy))
-        else:
-            send_msg(context, 'Заявок не найдено')
+        show_requests(context)
             
         
     

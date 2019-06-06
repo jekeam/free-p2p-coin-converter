@@ -14,9 +14,9 @@ class Request(BaseModel):
     stat =  CharField(null=False, default='0') # 0 Draft, 1 Post, -1 Cancel, 3 Open Deal,
     user_id = IntegerField(null=False)
     summ = FloatField(null=False)
-    coin_sell = CharField(null=True, constraints=[Check("coin_sell='BTC' or coin_sel ='ETH'")])
+    coin_sell = CharField(null=True, constraints=[Check('coin_sell in (`BTC`)')])
     addr_sell = CharField(null=False, unique=False)
-    coin_buy = CharField(null=True, constraints=[Check("coin_buy in ('BTC', 'ETH')")])
+    coin_buy = CharField(null=True, constraints=[Check('coin_buy in (`BTC`)')])
     addr_buy =  CharField(null=False, unique=False)
     counter_request = IntegerField(null=True)
     
