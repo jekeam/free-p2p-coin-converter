@@ -1,11 +1,27 @@
 # coding: utf-8
-import peewee
+from peewee import *
 
 
-db = peewee.MySQLDatabase('p2pfcc', user='root', password='', host='127.0.0.1', port=3306)
-accesse_coins = 'in ("BTC", "ETH")'
+db = MySQLDatabase('p2pfcc', user='root', password='', host='127.0.0.1', port=3306)
 
 
 class BaseModel(Model):
     class Meta:
         database = db
+        
+class Request(BaseModel):
+    id = PrimaryKeyField(unique=True)
+    stat =  CharField(null=False, default='0') # 0 Draft, 1 Post, -1 Cancel, 3 Open Deal,
+    user_id = IntegerField(null=False)
+    summ = FloatField(null=False)
+    coin_sell = CharField(null=True, constraints=[Check("coin_sell='BTC' or coin_sel ='ETH'")])
+    addr_sell = CharField(null=False, unique=False)
+    coin_buy = CharField(null=True, constraints=[Check("coin_buy in ('BTC', 'ETH')")])
+    addr_buy =  CharField(null=False, unique=False)
+    counter_request = IntegerField(null=True)
+    
+def create_request(user_id, summ, coin_sell, addr_sell, coin_buy, addr_buy):
+    Request.create(user_id=user_id, summ=summ, coin_sell=coin_sell, addr_sell=addr_sell, coin_buy=coin_buy, addr_buy=addr_buy)
+    
+def get_requests(user_id):
+    return Request.select().where(user_id==user_id).execute()

@@ -13,6 +13,7 @@ from telegram.ext.callbackcontext import CallbackContext
 import conf
 import dict_word
 import bot_util
+from db_model import create_request, get_requests
 
 CURR_LANG = 'RU'
 
@@ -20,9 +21,9 @@ def send_msg(context, text:str, reply_markup=None):
     user_id = get_(context, 'user_id')
     if user_id:
         if reply_markup:
-            context.bot.send_message(user_id, text=text, reply_markup=reply_markup)
+            context.bot.send_message(user_id, text=text, reply_markup=reply_markup,  parse_mode=telegram.ParseMode.MARKDOWN)
         else:
-            context.bot.send_message(user_id, text=text)
+            context.bot.send_message(user_id, text=text, parse_mode=telegram.ParseMode.MARKDOWN)
 
 def choice_coin_sell(context, btn:dict, text:str):
     kb = []
@@ -37,7 +38,10 @@ def get_coins_dict(exclude=None):
     for c in conf.accsess_coins:
         coins[c] = c
     if exclude:
-        coins.pop(exclude)
+        try:
+            coins.pop(exclude)
+        except:
+            pass
     return coins
 
 
@@ -51,15 +55,21 @@ def get_data(update):
     
 def main(update, context):
     data = get_data(update)
-    print('main, step: ' + str(get_(context, 'step')))
+    print('main, step: ' + str(get_(context, 'step')) + ', data: ' + str(data))
     
     if 'start' in data:
         reset_user_data(context)
         set_(context, 'step', 'choice_coin_sell')
-        set_(context, 'user_id', update.message.chat.id)
+        
+    user_id = None
+    try:
+        user_id = update.message.from_user.id
+    except AttributeError:
+        user_id = update.callback_query.from_user.id
+    set_(context, 'user_id', user_id)
         
     if get_(context, 'step') == 'choice_coin_sell':
-        choice_coin_sell(context, get_coins_dict(), 'Пожалуйста выбере монету, которую вы хотите продать:')
+        choice_coin_sell(context, get_coins_dict(), 'Пожалуйста выбере монету, которую вы хотите продать')
         set_(context, 'step', 'set_coin_sell')
     elif get_(context, 'step') == 'set_coin_sell':
         set_(context, 'coin_sell', data)
@@ -80,14 +90,58 @@ def main(update, context):
         set_(context, 'step', 'choice_coin_buy')
         
     if get_(context, 'step') == 'choice_coin_buy':
-        choice_coin_sell(context, get_coins_dict(get_(context, 'coin_sell')), 'Пожалуйста выбере монету, которую вы хотите продать:')
+        choice_coin_sell(context, get_coins_dict(get_(context, 'coin_sell')), 'Пожалуйста выбере монету, которую вы хотите купить')
         set_(context, 'step', 'set_coin_buy')
     elif get_(context, 'step') == 'set_coin_buy':
         set_(context, 'coin_buy', data)
-        set_(context, 'step', 'show_request')
+        set_(context, 'step', 'choice_addr_buy')
         
-    if get_(context, 'step') == 'show_request':
-        send_msg(context, 'Ваша заявка принята, пожалуйста, проверьте данные: ' + str(context.user_data))
+    if get_(context, 'step') == 'choice_addr_buy':
+        send_msg(context, 'Пожалуйста, введите адрес для покупки ' + get_(context, 'coin_buy'))
+        set_(context, 'step', 'set_addr_buy')
+    elif get_(context, 'step') == 'set_addr_buy':
+        set_(context, 'addr_buy', data)
+        set_(context, 'step', 'confirm_request')
+
+    if get_(context, 'step') == 'confirm_request':
+        kb = []
+        kb.append([InlineKeyboardButton(text='Cоздать заявку', callback_data='ok')])
+        kb.append([InlineKeyboardButton(text='Отменить', callback_data='restart')])
+        reply_markup = InlineKeyboardMarkup(kb)
+        send_msg(
+            context, 
+            'Пожалуйста, проверьте данные:'
+            '\nАдрес для продажи {}:\n{}'.format(get_(context, 'coin_sell'), get_(context, 'addr_sell')) + \
+            '\nАдрес для покупки {}:\n{}'.format(get_(context, 'coin_buy'), get_(context, 'addr_buy')) + \
+            '\nСумма в {}: {}'.format(get_(context, 'coin_sell'), get_(context, 'sum')),
+            reply_markup
+        )
+        set_(context, 'step', 'get_confirm_request')
+    elif get_(context, 'step') == 'get_confirm_request':
+        if data == 'ok':
+            set_(context, 'step', 'create_request')
+        
+    if get_(context, 'step') == 'create_request':
+        create_request(
+            get_(context, 'user_id'), 
+            get_(context, 'sum'),
+            get_(context, 'addr_sell'), 
+            get_(context, 'addr_sell'), 
+            get_(context, 'coin_buy'), 
+            get_(context, 'addr_buy')
+        )
+        set_(context, 'step', 'show_requests')
+        send_msg(context, 'Ваша заявка успешно создана')
+    
+    if  get_(context, 'step') == 'show_requests' or '/request' == data:
+        set_(context, 'step', 'show_requests')
+        reuests = get_requests(get_(context, 'user_id'))
+        if reuests:
+            for reuest in reuests:
+                send_msg(context, '*#{}*: {} {} -> {}'.format(reuest.id, reuest.summ, reuest.coin_sell, reuest.coin_buy))
+        else:
+            send_msg(context, 'Заявок не найдено')
+            
         
     
 def set_(context, param:str, val:str):
@@ -141,6 +195,7 @@ if __name__ == '__main__':
 
     updater.dispatcher.add_handler(CommandHandler('start', main))
     updater.dispatcher.add_handler(CommandHandler('restart', main))
+    updater.dispatcher.add_handler(CommandHandler('request', main))
     # updater.dispatcher.add_handler(CommandHandler('help', help))
     updater.dispatcher.add_error_handler(error_callback)
     updater.dispatcher.add_handler(CallbackQueryHandler(main))
