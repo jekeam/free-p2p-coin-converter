@@ -2,8 +2,8 @@
 from peewee import *
 
 
-db = MySQLDatabase('p2pfcc', user='root', password='', host='127.0.0.1', port=3306)
-
+db = MySQLDatabase('p2pfcc', user='root', password='newpass', host='127.0.0.1', port=3306)
+# db = MySQLDatabase('p2pfcc', user='phpmyadmin', password='', host='127.0.0.1', port=3306)
 
 class BaseModel(Model):
     class Meta:

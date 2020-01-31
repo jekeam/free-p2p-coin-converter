@@ -219,3 +219,6 @@ if __name__ == '__main__':
     # Run the bot until the user presses Ctrl-C or the process receives SIGINT,
     # SIGTERM or SIGABRT
     updater.idle()
+
+# https://web3py.readthedocs.io/en/stable/contracts.html
+# https://remix.ethereum.org
